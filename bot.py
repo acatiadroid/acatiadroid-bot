@@ -83,8 +83,9 @@ async def on_message(message):
     if tokens:
         gist = await util.create_gist(message, content="\n".join(tokens), reason='Automatic token invalidation')
 
-        await message.channel.send(f':warning: **{message.author.mention}, I have found a token and posted it to <{gist}> to be invalidated.**')
+        await message.channel.send(f'{message.author.mention}, I have found a token and posted it to <{gist}> to be invalidated.')
 
+    await bot.process_commands(message)
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -282,7 +283,7 @@ async def announcement(ctx, bot: typing.Union[discord.Member, discord.User]):
             value=announcement["post_body"]
         )
         e.description = f"Post created by {data['owner_name']} ({data['owner_id']})"
-    else:
+    else: 
         e.description = 'This bot doesn\'t have an announcement. :cry:'
 
     await em(ctx, embed=e)
