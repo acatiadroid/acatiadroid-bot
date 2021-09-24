@@ -3,13 +3,13 @@ import parsedatetime as pdt
 import re
 import os
 import github
-import discord
 import base64, binascii
 from dateutil.relativedelta import relativedelta
 from discord.ext import commands
 from decouple import config
 from googletrans import Translator
 from collections import Counter
+from typing import Callable, Tuple, Any
 
 def cleanup_code(content):
     """Automatically removes code blocks from the code in the eval command."""
@@ -354,21 +354,11 @@ async def create_gist(message, *, content: str, reason: str):
 
     return gist.html_url
 
-class ConfirmTokenInvalidation(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        self.value = None
-    
-    @discord.ui.button(label='Yes', style=discord.ButtonStyle.red)
-    async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-        await interaction.response.send_message('Token has been invalidated.', ephemeral=True)
-        self.value = True
-        self.stop()
-    
-    @discord.ui.button(label='No', style=discord.ButtonStyle.grey)
-    async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-        await interaction.response.send_message('Alright, the token won\'t be invalidated.', ephemeral=True)
-        self.value = False
-        self.disabled = True
-        self.stop()
-        
+def call(func: Callable, *args: Tuple[Any], exception: Exception = Exception, ret: bool = False, **kwargs) -> Any:
+    """one liner method that handles all errors in a single line which returns None, or Error instance depending on ret
+       value.
+    """
+    try:
+        return func(*args, **kwargs)
+    except exception as e:
+        return (None, e)[ret]

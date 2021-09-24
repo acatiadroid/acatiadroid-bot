@@ -79,11 +79,52 @@ async def on_message(message):
         return
     
     tokens = [token for token in TOKEN_REGEX.findall(message.content) if util.validate_token(token)]
+    
+    class ConfirmTokenInvalidation(discord.ui.View):
+        def __init__(self):
+            super().__init__()
+            self.value = None
+            self.message = message
 
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            if self.message.author.id != interaction.user.id:
+                return False
+            else:
+                return True
+
+        @discord.ui.button(label='Yes', style=discord.ButtonStyle.red)
+        async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
+            self.value = True
+            for item in self.children:
+                item.disabled = True
+            self.stop()
+
+        @discord.ui.button(label='No', style=discord.ButtonStyle.grey)
+        async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
+            self.value = False
+            for item in self.children:
+                item.disabled = True
+            self.stop()
+    
     if tokens:
-        gist = await util.create_gist(message, content="\n".join(tokens), reason='Automatic token invalidation')
-
-        await message.channel.send(f'{message.author.mention}, I have found a token and posted it to <{gist}> to be invalidated.')
+        if "parsetoken" in message.content:
+            pass
+        else:
+            view = ConfirmTokenInvalidation()
+            try:
+                msg = await message.reply(f'{message.author.mention} **Token found in your message.**\n\nFor the safety of your bot, do you want me to invalidate it?', view=view)
+            except Exception as e:
+                print(e)
+            await view.wait()
+            if view.value is None:
+                gist = await util.create_gist(message, content="\n".join(tokens), reason='Automatic token invalidation')
+                await msg.delete()
+            elif view.value:
+                gist = await util.create_gist(message, content="\n".join(tokens), reason='Automatic token invalidation (requested by user)')
+                await message.channel.send(f'{message.author.mention}, I have invalidated your token. See it here: <{gist}>')
+            else:
+                await msg.delete()
+        
 
     await bot.process_commands(message)
 
@@ -331,52 +372,81 @@ async def cleanup(ctx, search=100):
 
 @bot.command()
 async def parsetoken(ctx, token: str):
-    plonked = await is_plonked(ctx.author.id)
-    if plonked:
-        return
-    
-    token_part = token.split(".")
-    if len(token_part) != 3:
-        return await r(ctx, 'Invalid token.')
+    try:
+        plonked = await is_plonked(ctx.author.id)
+        if plonked:
+            return
+        
+        token_part = token.split(".")
+        if len(token_part) != 3:
+            return await r(ctx, 'Invalid token.')
 
-    def decode_user(user: str) -> str:
-        user_bytes = user.encode()
-        user_id_decoded = base64.b64decode(user_bytes)
-        return user_id_decoded.decode("ascii")
-    
-    def parse_date(token: str) -> datetime.datetime:
-        bytes_int = base64.standard_b64decode(token + "==")
-        decoded = int.from_bytes(bytes_int, "big")
-        timestamp = datetime.datetime.utcfromtimestamp(decoded)
+        def decode_user(user: str) -> str:
+            user_bytes = user.encode()
+            user_id_decoded = base64.b64decode(user_bytes)
+            return user_id_decoded.decode("ascii")
+        
+        def parse_date(token: str) -> datetime.datetime:
+            bytes_int = base64.standard_b64decode(token + "==")
+            decoded = int.from_bytes(bytes_int, "big")
+            timestamp = datetime.datetime.utcfromtimestamp(decoded)
 
-        return timestamp
+            return timestamp
 
-    str_id = util.call(decode_user, token_part[0])
+        str_id = util.call(decode_user, token_part[0])
 
-    timestamp = parse_date(token_part[1]) or "Invalid date"
+        timestamp = parse_date(token_part[1]) or "Invalid date"
 
-    user_id = int(str_id)
+        user_id = int(str_id)
 
-    member = await bot.fetch_user(user_id) 
+        member = await bot.fetch_user(user_id) 
 
-    if not str_id or not str_id.isdigit():
-        return await r(ctx, f"Invalid user.")
+        if not str_id or not str_id.isdigit():
+            return await r(ctx, f"Invalid user.")
 
-    e = discord.Embed(
-        title=f"{member}'s token info",
-        color=0xfecdea
-    )
-    e.description=f"""
-    User: {member} ({member.id})
-    Bot: {member.bot}
-    Created: {util.format_longdatetime(member.created_at)}
-    Token created: {timestamp}
-    Please ensure this token has been invalidated.
-    """
-    e.set_thumbnail(url=member.avatar.url)
+        e = discord.Embed(
+            title=f"{member}'s token info",
+            color=0xfecdea
+        )
+        e.description=f"""
+        User: {member} ({member.id})
+        Bot: {member.bot}
+        Created: {util.format_longdatetime(member.created_at)}
+        Token created: {timestamp}
+        Please ensure this token has been invalidated.
+        """
+        e.set_thumbnail(url=member.avatar.url)
 
-    await em(ctx, embed=e)
+        class InvalidateToken(discord.ui.View):
+            def __init__(self):
+                super().__init__()
+                self.value = None
+                self.ctx = ctx
 
+            async def interaction_check(self, interaction: discord.Interaction) -> bool:
+                if interaction.user.id != self.ctx.author.id:
+                    return False
+                else:
+                    return True
+
+            @discord.ui.button(label='Invalidate token', style=discord.ButtonStyle.blurple)
+            async def invalidate(self, button: discord.ui.Button, interaction: discord.Interaction):
+                self.value = True
+                button.disabled = True
+                self.stop()
+            
+        view = InvalidateToken()
+        
+        msg = await ctx.send(embed=e, view=view)
+        
+        await view.wait()
+        if view.value:
+            gist = await util.create_gist(ctx.message, content=token, reason='Automatic token invalidation (requested by user)')
+            await msg.edit(content=f'ℹ️ **Token has been sent to <{gist}> for invalidation**')
+        else:
+            pass
+    except Exception as e:
+        print(e)
 
 @bot.command(hidden=True)
 @commands.is_owner()
