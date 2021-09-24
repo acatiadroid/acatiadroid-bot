@@ -6,4 +6,5 @@ dnspython
 python-decouple
 parsedatetime
 python-dateutil
+PyGithub
 googletrans==3.1.0a0
