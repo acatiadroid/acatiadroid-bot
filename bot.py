@@ -105,6 +105,19 @@ async def on_message(message):
             for item in self.children:
                 item.disabled = True
             self.stop()
+        
+        @discord.ui.button(emoji='❓', style=discord.ButtonStyle.blurple)
+        async def _info(self, button: discord.ui.Button, interaction: discord.Interaction):
+            content = """
+            **How does this work?**
+            Token invalidation works by posting your token on a public Gist on GitHub. **This is not bad!**
+            Discord will see your token on GitHub and immidiately make that token no longer work. You
+            will get an official Discord message saying that a token has been found and that Discord has 
+            reset it.
+
+            Please note that by not invalidating your token, anyone who sees your token can essentially now use your bot.
+            """
+            await interaction.response.send_message(content, ephemeral=True)
     
     if tokens:
         if "parsetoken" in message.content:
@@ -112,7 +125,7 @@ async def on_message(message):
         else:
             view = ConfirmTokenInvalidation()
             try:
-                msg = await message.reply(f'{message.author.mention} **Token found in your message.**\n\nFor the safety of your bot, do you want me to invalidate it?', view=view)
+                msg = await message.reply(f'{message.author.mention} **Token found in your message.**\n\n> **Do you want me to invalidate it?**\nIt\'s highly recommended you invalidate it, otherwise anyone can control your bot.', view=view)
             except Exception as e:
                 print(e)
             await view.wait()
@@ -147,7 +160,7 @@ async def hello(ctx):
 @bot.command()
 async def source(ctx):
     """My source code."""
-    await r(ctx, "<https://github.com/acatiadroid/rock-bot>")
+    await r(ctx, "<https://github.com/acatiadroid/acatiadroid-bot>")
 
 
 @bot.command(aliases=['wo'])
