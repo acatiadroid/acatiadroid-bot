@@ -3,6 +3,7 @@ import parsedatetime as pdt
 import re
 import os
 import github
+import discord
 import base64, binascii
 from dateutil.relativedelta import relativedelta
 from discord.ext import commands
