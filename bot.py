@@ -485,8 +485,8 @@ async def whyplonked(ctx, user: typing.Union[discord.Member, discord.User]):
     
     await r(ctx, f"**{user} was plonked for:**\n{data['reason']}")
         
-@bot.command(aliases=['init'])
-async def initialize(ctx):
+@bot.command(aliases=['calc'])
+async def calculator(ctx):
     class InteractiveCalculatorView(discord.ui.View):
         def __init__(self):
             super().__init__()
